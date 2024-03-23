@@ -24,17 +24,19 @@ from langchain_community.document_loaders.csv_loader import CSVLoader,Unstructur
 from langchain_community.document_loaders.powerpoint import UnstructuredPowerPointLoader
 from langchain_community.document_loaders.web_base import WebBaseLoader
 from langchain_community.document_loaders.text import TextLoader
+from langchain_community.document_loaders.wikipedia import WikipediaLoader
+from langchain_community.retrievers.wikipedia import WikipediaRetriever
 
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 def chroma_retriever(docs,embeddings):
-    chretriever=Chroma.from_documents(documents=docs,embedding=embeddings).as_retriever()
-    return chretriever
+    retriever=Chroma.from_documents(documents=docs,embedding=embeddings).as_retriever()
+    return retriever
 def faiss_retriever(docs,embeddings):
-    chretriever=FAISS.from_documents(documents=docs,embedding=embeddings).as_retriever()
-    return chretriever
+    retriever=FAISS.from_documents(documents=docs,embedding=embeddings).as_retriever()
+    return retriever
 def document_analyser_chain(llm,retriever,prompt):
     chain=({'context':retriever,'question':RunnablePassthrough()}
         |prompt|llm|StrOutputParser())
@@ -76,12 +78,16 @@ def load_excel(path):
     return docs,splitdoc
 def load_webpages(url):
     docs=WebBaseLoader(url).load()
-    
     splitter=RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
     splitdoc=splitter.split_documents(docs)
-    print(splitdoc)
-    print(len(splitdoc))
     return docs,splitdoc
+def load_wiki(query:str):
+    docs=WikipediaLoader(query).load()
+    splitter=RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    splitdoc=splitter.split_documents(docs)
+    #res=[d for d in splitdoc if d is not None]
+    return docs,splitdoc
+
 def Load_PowerPoint(path):
     docs=UnstructuredPowerPointLoader(path).load()
     
@@ -91,7 +97,8 @@ def Load_PowerPoint(path):
     print(len(splitdoc))
     return docs,splitdoc
 
-
+wikiretriver=WikipediaRetriever()
+wikiretriver
 prompt1=PromptTemplate(input_variables=['context','input','unknown'],
                           template=
                           ''' you are an expert analyst; you are good at varoius task such as:
@@ -110,43 +117,59 @@ prompt=PromptTemplate(input_variables=['context','input'],
                           fact extraction,important points identification, important facts,discussions
                            of document abstract,discussion of document conclusion,discussing introduction,
                             mathematical analysis,identifying equations,analysing document introduction,
+                            acronym recognition,
                              mathematical modelling, keypoint identification,
-                             expansion, ideal generation, and general document analysis.
+                             idea expansion, idea generation,hint generation,insight extraction,
+                              careful reviewer, and general document analysis.
                           Use the provided datasource: [{context}],
                           as your only source of truth to answer the 
                           question: {question}?.
                           ''')
 
 
-def analyse_documents(path:str,llm=None,embeddings=None,retriever=None,prompt=prompt):
+def analyse_documents(path:str,llm=None,embeddings=None,
+                      llm_model_id="gemini-pro",
+                      embedding_model_id='models/embedding-001',
+                          retriever=None,prompt=prompt):
+    splitdoc_processed=None
+    path=path.strip('"')
     if not os.path.isfile(path) and not path.startswith(('http','https')):
-       raise FileExistsError(f"file: {path} does not exist")
+       try:
+           try:
+                _,splitdoc=load_wiki(path)
+                splitdoc_processed='document is processed'
+           except:
+              raise Exception("wikipedia search engine failure")
+               
+       except:
+            raise FileExistsError(f"file: {path} does not exist")
     _,ext=os.path.splitext(path)
     splitdoc=None
     chain=None
-    if ext.strip('.')=='pdf':
-        _,splitdoc=load_pdf(path=path)
-    elif ext.strip('.')=='txt':
-        _,splitdoc=load_txt(path=path)
-    elif ext.strip('.')=='csv':
-        _,splitdoc=load_csv(path=path)
-    elif ext.strip('.')=='docx':
-        _,splitdoc=load_msword(path=path)
-    elif ext.strip('.')=='xlsx':
-        _,splitdoc=load_excel(path=path)
-    elif ext.strip('.')=='epud':
-        _,splitdoc=load_epud(path=path)
-    elif ext.strip('.')=='pptx':
-        _,splitdoc=Load_PowerPoint(path)
-    elif path.startswith(('http','https')):
-        _,splitdoc=load_webpages(path)
-    else:
-        raise AttributeError(f"file type {ext.strip('.')} is not supported")
-    llm=llm if llm else google_models()
-    embeddings=embeddings if embeddings else google_embedding()
-    retriever=retriever if retriever else faiss_retriever(splitdoc,embeddings)
+    if not splitdoc_processed:
+        if ext.strip('.')=='pdf':
+            _,splitdoc=load_pdf(path=path)
+        elif ext.strip('.')=='txt':
+            _,splitdoc=load_txt(path=path)
+        elif ext.strip('.')=='csv':
+            _,splitdoc=load_csv(path=path)
+        elif ext.strip('.')=='docx':
+            _,splitdoc=load_msword(path=path)
+        elif ext.strip('.')=='xlsx':
+            _,splitdoc=load_excel(path=path)
+        elif ext.strip('.')=='epud':
+            _,splitdoc=load_epud(path=path)
+        elif ext.strip('.')=='pptx':
+            _,splitdoc=Load_PowerPoint(path)
+        elif path.startswith(('http','https')):
+            _,splitdoc=load_webpages(path)
+        else:
+            raise AttributeError(f"file type {ext.strip('.')} is not supported")
+    llm=llm if llm else google_models(model_id=llm_model_id)
+    embeddings=embeddings if embeddings else google_embedding(model_id=embedding_model_id)
+    retriever=retriever if retriever else chroma_retriever(splitdoc,embeddings)
     chain=document_analyser_chain(llm=llm,retriever=retriever,prompt=prompt)
-    return chain
+    return chain,splitdoc
 
 
 if __name__=="__main__":
@@ -160,4 +183,7 @@ if __name__=="__main__":
     response=analyse_documents(path=path)
     query="mention atleast five important facts in the document"
 
-    print(response.invoke(query))
+   # print(response.invoke(query))
+    www=load_wiki('what is decarbonization')[1]
+    sss=[w.page_content for w in www]
+    print(sss)

@@ -17,7 +17,6 @@ def Hf_models(*,model_id:str='gpt2',task='text-generation'):
     return model
 def google_models(model_id='gemini-pro'):
     model=GoogleGenerativeAI(model=model_id)
-    #max_token=model.get_num_tokens("")
     return model
 def openai_models(model_id='gpt-3.5-turbo'):
     model=ChatOpenAI(model=model_id)

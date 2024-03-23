@@ -1,6 +1,7 @@
 from langchain_experimental.sql import SQLDatabaseChain
 from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
 from langchain_community.agent_toolkits import create_sql_agent
+from langchain.chains.sql_database.query import create_sql_query_chain
 from langchain.agents.agent import AgentExecutor
 from langchain.agents import create_react_agent
 from langchain.agents.load_tools import load_tools
@@ -39,11 +40,12 @@ def using_chain():
     model_llm="gpt2"   
     #llm=HuggingFacePipeline.from_model_id(model_id=model_llm,task="text-generation")
     llm=google_models()
-    chain=SQLDatabaseChain.from_llm(llm=llm,db=db)
-    resp=chain.invoke("what is Joanna's surname")
-    #info= create_sql_query_chain(llm=llm,db=db,prompt=prompts)
+    #chain=SQLDatabaseChain.from_llm(llm=llm,db=db)
+    #resp=chain.invoke("what is Joanna's surname")
+    info= create_sql_query_chain(llm=llm,db=db)
+    mes=db.run(info.invoke({'question':"what is Joanna's surname"}))
     #resp=info.invoke({'question':'number of columns in ActiveFluidModel table','table_info':'ActiveFluidModel','top_k':1})
-    print(resp['answer'])
+    print(mes)
 
 
 if __name__=="__main__":
