@@ -1,3 +1,4 @@
+from types import NoneType
 from langchain.embeddings.huggingface_hub import HuggingFaceHubEmbeddings
 from langchain_community.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_hub import HuggingFaceHub
@@ -83,6 +84,7 @@ def load_webpages(url):
     return docs,splitdoc
 def load_wiki(query:str):
     docs=WikipediaLoader(query).load()
+    docs=[d for d in docs if not isinstance(d,NoneType)]
     splitter=RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
     splitdoc=splitter.split_documents(docs)
     #res=[d for d in splitdoc if d is not None]
@@ -180,10 +182,11 @@ if __name__=="__main__":
     path=R"C:\Users\eno.udonkwo\Desktop\CypherCrescent Limited HSE Annual Report 2021-2022 .docx"
     path=r"https://www.fao.org/nigeria/fao-in-nigeria/nigeria-at-a-glance/en/"
     path=r"C:\Users\eno.udonkwo\Desktop\2023 Works\misc\Flare emission reduction utilizing solid oxide fuel cells at a natural gas.pdf"
+    path='what is decarbonization'
     response=analyse_documents(path=path)
     query="mention atleast five important facts in the document"
 
    # print(response.invoke(query))
-    www=load_wiki('what is decarbonization')[1]
-    sss=[w.page_content for w in www]
-    print(sss)
+    #www=load_wiki('what is decarbonization')[1]
+    #sss=[w.page_content for w in www]
+    #print(sss)

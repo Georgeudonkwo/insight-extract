@@ -21,8 +21,8 @@ def fetch_agent(connString:str,llm:BaseLanguageModel,query:str):
     agent=create_sql_agent(llm=llm,toolkit=db_tool_kit
                            ,agent_type='zero-shot-react-description',
                            verbose=True)
-    result=agent.run(query)
-    return result
+    result=agent.run(input=query,handle_parsing_error=True)
+    return result,tbl_info,tbl_names,contxt
 
     
 def fetch(connString:str,llm:BaseLanguageModel):
