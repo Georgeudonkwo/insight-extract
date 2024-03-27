@@ -34,7 +34,7 @@ with st.sidebar:
             st.write(connstr)
         elif  dialet.strip()=='sqlite':
             st.sidebar.file_uploader('get file path by copying')
-            filepath=st.text_area('dialet',value=R'C:\Users\eno.udonkwo\Desktop\2024 works\data\misc.db')
+            filepath=st.text_area('dialet',value=R'C:\Users\eno.udonkwo\Desktop\2024 works\data\PVTRMS-mod.db')
             connstr=R"sqlite:///"+f"{filepath.strip('"')}"
             st.write(connstr)
         elif dialet.strip()=='mssql':
@@ -86,6 +86,6 @@ with st.form('chat_form'):
                 st.info(database_object)
             with cols[1]:
                 with st.expander('See database tables'):
-                    st.write(tbl_names)
-                    st.write(tbl_info)
+                    #st.write(tbl_names)
+                    #st.write(tbl_info)
                     st.write(contxt)
