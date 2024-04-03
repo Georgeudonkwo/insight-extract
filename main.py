@@ -88,4 +88,5 @@ with st.form('chat_form'):
                 with st.expander('See database tables'):
                     #st.write(tbl_names)
                     #st.write(tbl_info)
+                    #print("")
                     st.write(contxt)
