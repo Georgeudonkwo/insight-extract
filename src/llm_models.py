@@ -31,7 +31,7 @@ def Hf_embeddings(model_id='hkunlp/instructor-large'):
     embedings=HuggingFaceInstructEmbeddings(model_name = model_id)
     return embedings
 if __name__=="__main__":
-   # model=Hf_models()
+    # model=Hf_models()
     #res=model.invoke("discuss climate change,and mitigating measures")
     res=Hf_embeddings().embed_query('my name is george udonkwo')
     print(res)
