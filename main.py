@@ -3,17 +3,22 @@ import time
 from src.sourcefiles import analyse_documents,load_wiki
 from src.fetch import fetch_agent
 from src.llm_models import google_models
+from src.chatting import chat_chain,ret_chain
 st.title('Document Analyser')
+st.divider()
 cols=st.columns([0.4,0.6])
 doc=None
 llm=None
 database_object=None
 with st.sidebar:
     path=''
-    st.sidebar.selectbox('Data Context',['files','Database','wikipedia'],key='select')
+    st.sidebar.selectbox('Data Context',['files','website','Database','wikipedia'],index=0, key='select')
     if st.session_state.select=='files':
         st.sidebar.file_uploader('get file path by copying')
         path= st.text_area('Enter file path',placeholder="file name")
+        st.write(path)
+    if st.session_state.select=='website':
+        path= st.text_area('Enter url',placeholder="url path")
         st.write(path)
     elif st.session_state.select=='wikipedia':
         path= st.text_area('Enter search token',placeholder="Search wikipedia")
@@ -44,27 +49,30 @@ with st.sidebar:
         
             
 
-
-        
 if st.session_state.select=='files':
     spintext='Loading and analysing document, please wait ...:raised_hand_with_fingers_splayed:'
+elif st.session_state.select=='website':
+    spintext='Loading your url, please wait ...:raised_hand_with_fingers_splayed:'
 else:
     spintext='searching wikipedia. This may take some time ...:raised_hand_with_fingers_splayed:'
 
 with st.form('chat_form'):
     with cols[0]:
         st.header(':red[Insight Extraction]')
-    if st.session_state.select=='files'or st.session_state.select=='wikipedia':
+    if st.session_state.select=='files'or st.session_state.select=='wikipedia'or st.session_state.select=='website':
         query = st.text_area('What do you want to do :question:','summarise the uploaded document!')
     elif st.session_state.select=='Database':
         query=st.text_area('interact with your database',value='fetch table info')
     submitted = st.form_submit_button(':blue[Submit Request] :running:')
+    
     if submitted:
-        if st.session_state.select=='files' or st.session_state.select=='wikipedia':
+        if st.session_state.select=='files' or st.session_state.select=='wikipedia'or st.session_state.select=='website':
             with st.spinner(spintext):
                 starttime=time.time()
-                chain,doc=analyse_documents(path)
-                res=chain.invoke(query)
+                #chain,doc=analyse_documents(path)
+                #res=chain.invoke(query)
+                #res,doc=chat_chain(path,query)
+                res,doc=ret_chain(path,query)
                 endtime=time.time()
                 st.write(f' the inference ran for {round((endtime-starttime),2)} seconds')
                 st.info(res)
@@ -83,10 +91,10 @@ with st.form('chat_form'):
                 database_object,tbl_info,tbl_names,contxt=fetch_agent(connString=connstr,llm=llm,query=query)
                 endtime=time.time()
                 st.write(f' the inference ran for {round((endtime-starttime),2)} seconds')
+               
                 st.info(database_object)
             with cols[1]:
                 with st.expander('See database tables'):
                     #st.write(tbl_names)
                     #st.write(tbl_info)
-                    #print("")
                     st.write(contxt)

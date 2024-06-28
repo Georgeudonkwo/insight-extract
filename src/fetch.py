@@ -18,11 +18,24 @@ def db_instance(connString:str):
 def fetch_agent(connString:str,llm:BaseLanguageModel,query:str):
     db,tbl_info,tbl_names,contxt=db_instance(connString=connString)
     db_tool_kit=SQLDatabaseToolkit(db=db,llm=llm)
+    dialet=connString.split(':')[0]
+    if '+'in dialet:
+        dialet=dialet.split('+')[0]
+    top_k=10
+    sqlprompt=PromptTemplate.from_template(template='''you are an expert database administrator,
+                                          use the provided: {input} to generate good
+                                          sql query for the database dialet: {dialet}
+                                           and execute it against the {db} 
+                                          using only relevant schema {tbl_info}
+                                           return the first {top_k} rows
+                                           note: CriticalPressure is the same as pcrit or pc
+                                           ''')
     agent=create_sql_agent(llm=llm,toolkit=db_tool_kit
                            ,agent_type='zero-shot-react-description',
+                           suffix=sqlprompt,
                            verbose=True)
-    result=agent.run(input=query,handle_parsing_error=True)
-    return result,tbl_info,tbl_names,contxt
+    result=agent.invoke({'input':query})
+    return result['output'],tbl_info,tbl_names,contxt
 
     
 def fetch(connString:str,llm:BaseLanguageModel):

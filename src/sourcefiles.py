@@ -27,10 +27,11 @@ from langchain_community.document_loaders.web_base import WebBaseLoader
 from langchain_community.document_loaders.text import TextLoader
 from langchain_community.document_loaders.wikipedia import WikipediaLoader
 from langchain_community.retrievers.wikipedia import WikipediaRetriever
-
 import os
+from  typing import (List,Optional)
 from dotenv import load_dotenv
 
+_retriever_providers=['chroma','meta']
 load_dotenv()
 def chroma_retriever(docs,embeddings):
     retriever=Chroma.from_documents(documents=docs,embedding=embeddings).as_retriever()
@@ -38,6 +39,16 @@ def chroma_retriever(docs,embeddings):
 def faiss_retriever(docs,embeddings):
     retriever=FAISS.from_documents(documents=docs,embedding=embeddings).as_retriever()
     return retriever
+def get_retriever(provider:str,docs,embeddings):
+    retriever=None
+    if provider ==_retriever_providers[0]:
+        retriever=chroma_retriever(docs,embeddings)
+    elif provider ==_retriever_providers[1]:
+        retriever=faiss_retriever(docs,embeddings)
+    else:
+        pass
+    return retriever
+
 def document_analyser_chain(llm,retriever,prompt):
     chain=({'context':retriever,'question':RunnablePassthrough()}
         |prompt|llm|StrOutputParser())
@@ -101,6 +112,42 @@ def Load_PowerPoint(path):
 
 wikiretriver=WikipediaRetriever()
 wikiretriver
+def get_document(path:str)->List[Document]:
+    splitdoc_processed=None
+    path=path.strip('"')
+    if not os.path.isfile(path) and not path.startswith(('http','https')):
+       try:
+           try:
+                _,splitdoc=load_wiki(path)
+                splitdoc_processed='document is processed'
+           except:
+              raise Exception("wikipedia search engine failure")
+               
+       except:
+            raise FileExistsError(f"file: {path} does not exist")
+    _,ext=os.path.splitext(path)
+    splitdoc=None
+    if not splitdoc_processed:
+        if ext.strip('.')=='pdf':
+            _,splitdoc=load_pdf(path=path)
+        elif ext.strip('.')=='txt':
+            _,splitdoc=load_txt(path=path)
+        elif ext.strip('.')=='csv':
+            _,splitdoc=load_csv(path=path)
+        elif ext.strip('.')=='docx':
+            _,splitdoc=load_msword(path=path)
+        elif ext.strip('.')=='xlsx':
+            _,splitdoc=load_excel(path=path)
+        elif ext.strip('.')=='epud':
+            _,splitdoc=load_epud(path=path)
+        elif ext.strip('.')=='pptx':
+            _,splitdoc=Load_PowerPoint(path)
+        elif path.startswith(('http','https')):
+            _,splitdoc=load_webpages(path)
+        else:
+            raise AttributeError(f"file type {ext.strip('.')} is not supported")
+    return splitdoc
+
 prompt1=PromptTemplate(input_variables=['context','input','unknown'],
                           template=
                           ''' you are an expert analyst; you are good at varoius task such as:
@@ -123,6 +170,7 @@ prompt=PromptTemplate(input_variables=['context','input'],
                              mathematical modelling, keypoint identification,
                              idea expansion, idea generation,hint generation,insight extraction,
                               careful reviewer, and general document analysis.
+                              note: the following, criticalpressure is the same as pc
                           Use the provided datasource: [{context}],
                           as your only source of truth to answer the 
                           question: {question}?.
@@ -133,40 +181,7 @@ def analyse_documents(path:str,llm=None,embeddings=None,
                       llm_model_id="gemini-pro",
                       embedding_model_id='models/embedding-001',
                           retriever=None,prompt=prompt):
-    splitdoc_processed=None
-    path=path.strip('"')
-    if not os.path.isfile(path) and not path.startswith(('http','https')):
-       try:
-           try:
-                _,splitdoc=load_wiki(path)
-                splitdoc_processed='document is processed'
-           except:
-              raise Exception("wikipedia search engine failure")
-               
-       except:
-            raise FileExistsError(f"file: {path} does not exist")
-    _,ext=os.path.splitext(path)
-    splitdoc=None
-    chain=None
-    if not splitdoc_processed:
-        if ext.strip('.')=='pdf':
-            _,splitdoc=load_pdf(path=path)
-        elif ext.strip('.')=='txt':
-            _,splitdoc=load_txt(path=path)
-        elif ext.strip('.')=='csv':
-            _,splitdoc=load_csv(path=path)
-        elif ext.strip('.')=='docx':
-            _,splitdoc=load_msword(path=path)
-        elif ext.strip('.')=='xlsx':
-            _,splitdoc=load_excel(path=path)
-        elif ext.strip('.')=='epud':
-            _,splitdoc=load_epud(path=path)
-        elif ext.strip('.')=='pptx':
-            _,splitdoc=Load_PowerPoint(path)
-        elif path.startswith(('http','https')):
-            _,splitdoc=load_webpages(path)
-        else:
-            raise AttributeError(f"file type {ext.strip('.')} is not supported")
+    splitdoc=get_document(path=path)
     llm=llm if llm else google_models(model_id=llm_model_id)
     embeddings=embeddings if embeddings else google_embedding(model_id=embedding_model_id)
     retriever=retriever if retriever else chroma_retriever(splitdoc,embeddings)
